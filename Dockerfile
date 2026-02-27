@@ -8,10 +8,6 @@ RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY src ./src
-
-# Copy properties file
-COPY src/main/resources/application.properties ./src/main/resources/application.properties
-
 EXPOSE 8080
 
 # Run directly with Maven (no JAR needed)
