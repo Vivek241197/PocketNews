@@ -10,21 +10,19 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class NewsDTO {
     private Long id;
+
     private Long categoryId;
     private String categoryName;
-    private String title;
-    private String description;
-    private String content;
+
+    private String shortHeadline;
+    private String shortContent;
+
     private String imageUrl;
-    private String sourceUrl;
-    private String sourceName;
-    private String author;
-    private Boolean isFeatured;
-    private Integer viewsCount;
-    private Long likesCount;
-    private Long commentsCount;
+    private String source;
+
+    private Long viewCount;
+
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-

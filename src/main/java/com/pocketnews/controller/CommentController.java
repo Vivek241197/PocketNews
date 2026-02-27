@@ -1,9 +1,10 @@
 package com.pocketnews.controller;
 
-import com.pocketnews.dto.CommentDTO;
 import com.pocketnews.dto.CommentCreateRequest;
+import com.pocketnews.dto.CommentDTO;
 import com.pocketnews.service.CommentService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,40 +16,52 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/news/{newsId}/comments")
 public class CommentController {
 
-    @Autowired
-    private CommentService commentService;
+    private final CommentService commentService;
+
+    @Value("${app.max-news-per-page:10}")
+    private int pageSize;
+
+    public CommentController(CommentService commentService) {
+        this.commentService = commentService;
+    }
 
     @GetMapping
     public ResponseEntity<Page<CommentDTO>> getComments(
             @PathVariable Long newsId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<CommentDTO> comments = commentService.getCommentsByNewsId(newsId, pageable);
-        return ResponseEntity.ok(comments);
+            @RequestParam(defaultValue = "0") int page) {
+
+        Pageable pageable = PageRequest.of(page, pageSize);
+        return ResponseEntity.ok(commentService.getCommentsByNewsId(newsId, pageable));
     }
 
     @PostMapping
     public ResponseEntity<CommentDTO> createComment(
             @PathVariable Long newsId,
-            @RequestParam String deviceId,
-            @RequestBody CommentCreateRequest request) {
-        CommentDTO comment = commentService.createComment(newsId, deviceId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(comment);
+            @RequestHeader("Device-Id") String deviceId,
+            @Valid @RequestBody CommentCreateRequest request) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(commentService.createComment(newsId, deviceId, request));
     }
 
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentDTO> updateComment(
+            @PathVariable Long newsId,
             @PathVariable Long commentId,
-            @RequestBody CommentCreateRequest request) {
-        CommentDTO comment = commentService.updateComment(commentId, request);
-        return ResponseEntity.ok(comment);
+            @RequestHeader("Device-Id") String deviceId,
+            @Valid @RequestBody CommentCreateRequest request) {
+
+        return ResponseEntity.ok(
+                commentService.updateComment(newsId, commentId, deviceId, request));
     }
 
     @DeleteMapping("/{commentId}")
-    public ResponseEntity<Void> deleteComment(@PathVariable Long commentId) {
-        commentService.deleteComment(commentId);
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable Long newsId,
+            @PathVariable Long commentId,
+            @RequestHeader("Device-Id") String deviceId) {
+
+        commentService.deleteComment(newsId, commentId, deviceId);
         return ResponseEntity.noContent().build();
     }
 }
-

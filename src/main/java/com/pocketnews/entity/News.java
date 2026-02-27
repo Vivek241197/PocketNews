@@ -1,31 +1,43 @@
 package com.pocketnews.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
-@Table(name = "news")
-@Data
+@Table(
+        name = "news",
+        indexes = {
+                @Index(name = "idx_news_category", columnList = "category_id"),
+                @Index(name = "idx_news_published", columnList = "published_at"),
+                @Index(name = "idx_news_view_count", columnList = "view_count")
+        }
+)
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class News {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private Category category;
+    /* ============================================================
+       BASIC INFO
+       ============================================================ */
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String title;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "short_headline", nullable = false, length = 300)
+    private String shortHeadline;
+
+    @Column(name = "short_content", nullable = false, columnDefinition = "TEXT")
+    private String shortContent;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
@@ -33,25 +45,34 @@ public class News {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "source_url")
-    private String sourceUrl;
+    @Column(name = "source")
+    private String source;
 
-    @Column(name = "source_name")
-    private String sourceName;
+    /* ============================================================
+       RELATIONSHIP
+       ============================================================ */
 
-    private String author;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
-    @Column(name = "is_featured")
-    private Boolean isFeatured = false;
+    /* ============================================================
+       METRICS
+       ============================================================ */
 
-    @Column(name = "views_count")
-    private Integer viewsCount = 0;
+    @Column(name = "view_count", nullable = false)
+    private Long viewCount = 0L;
 
-    @Column(name = "published_at")
-    private LocalDateTime publishedAt;
+    /* ============================================================
+       STATUS
+       ============================================================ */
 
-    @Column(name = "expires_at")
-    private LocalDateTime expiresAt;
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
+    /* ============================================================
+       TIMESTAMPS
+       ============================================================ */
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -59,17 +80,35 @@ public class News {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+
+
+    @Column(name = "published_at", nullable = false)
+    private LocalDateTime publishedAt;
+
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt;
+
+    /* ============================================================
+       LIFECYCLE CALLBACKS
+       ============================================================ */
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-        // News expires after 5 days
-        expiresAt = LocalDateTime.now().plusDays(5);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        this.createdAt = now;
+        this.updatedAt = now;
+
+        if (this.publishedAt == null) {
+            this.publishedAt = now;
+        }
+
+        if (this.expiresAt == null) {
+            this.expiresAt = now.plusDays(2);
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }
-

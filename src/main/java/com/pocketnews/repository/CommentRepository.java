@@ -6,9 +6,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Long> {
-    Page<Comment> findByNewsId(Long newsId, Pageable pageable);
-    long countByNewsId(Long newsId);
+    Page<Comment> findByNewsIdAndActiveTrueOrderByCreatedAtDesc(
+            Long newsId,
+            Pageable pageable
+    );
+
+
+    long countByNewsIdAndActiveTrue(Long newsId);
+
+    Optional<Comment> findByIdAndNewsIdAndDeviceIdAndActiveTrue(
+            Long id,
+            Long newsId,
+            String deviceId
+    );
 }
 

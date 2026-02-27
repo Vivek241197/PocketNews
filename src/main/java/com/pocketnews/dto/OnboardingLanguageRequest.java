@@ -1,19 +1,15 @@
 package com.pocketnews.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserProfileDTO {
-    private Long id;
-    private String deviceId;
-    private String languageCode;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-}
+public class OnboardingLanguageRequest {
 
+    @NotBlank(message = "Language code is required")
+    private String languageCode;
+}

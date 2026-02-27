@@ -1,26 +1,20 @@
 package com.pocketnews.service;
 
 import com.pocketnews.dto.*;
-import com.pocketnews.entity.User;
-import com.pocketnews.entity.UserPreference;
+import com.pocketnews.entity.UserProfile;
 import com.pocketnews.exception.BadRequestException;
-import com.pocketnews.repository.UserRepository;
-import com.pocketnews.repository.UserPreferenceRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.pocketnews.repository.UserProfileRepository;
 import org.springframework.stereotype.Service;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class OnboardingService {
+    private final UserProfileRepository userProfileRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    public OnboardingService(UserProfileRepository userProfileRepository) {
+        this.userProfileRepository = userProfileRepository;
+    }
 
-    @Autowired
-    private UserPreferenceRepository userPreferenceRepository;
-
-    // Supported Indian languages
     private static final Map<String, LanguageOption> SUPPORTED_LANGUAGES = Map.ofEntries(
             Map.entry("en", new LanguageOption("en", "English", "English")),
             Map.entry("hi", new LanguageOption("hi", "Hindi", "हिंदी")),
@@ -36,150 +30,54 @@ public class OnboardingService {
             Map.entry("od", new LanguageOption("od", "Odia", "ଓଡ଼ିଆ"))
     );
 
-    /**
-     * Step 1: Get available languages
-     */
     public AvailableLanguagesResponse getAvailableLanguages() {
-        List<LanguageOption> languages = new ArrayList<>(SUPPORTED_LANGUAGES.values());
-        return new AvailableLanguagesResponse(languages);
+        return new AvailableLanguagesResponse(
+                new ArrayList<>(SUPPORTED_LANGUAGES.values())
+        );
     }
 
-    /**
-     * Step 1: Set language preference for new user
-     */
-    public UserProfileDTO completeStep1_SetLanguage(OnboardingStep1Request request) {
-        // Validate language code
-        if (!SUPPORTED_LANGUAGES.containsKey(request.getPreferredLanguage())) {
-            throw new BadRequestException("Invalid language code: " + request.getPreferredLanguage());
-        }
+    public UserProfileDTO setLanguageOnce(String deviceId, String languageCode) {
 
-        // Check if user already exists
-        Optional<User> existingUser = userRepository.findByDeviceId(request.getDeviceId());
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-            user.setPreferredLanguage(request.getPreferredLanguage());
-            user = userRepository.save(user);
-            return mapToUserProfileDTO(user);
-        }
-
-        // Create new anonymous user
-        User user = new User();
-        user.setDeviceId(request.getDeviceId());
-        user.setPreferredLanguage(request.getPreferredLanguage());
-        user.setAge(0); // Placeholder, will be updated in step 2
-        user = userRepository.save(user);
-
-        return mapToUserProfileDTO(user);
-    }
-
-    /**
-     * Step 2: Set age
-     */
-    public UserProfileDTO completeStep2_SetAge(OnboardingStep2Request request) {
-        User user = userRepository.findByDeviceId(request.getDeviceId())
-                .orElseThrow(() -> new BadRequestException("User not found. Please complete Step 1 first."));
-
-        if (request.getAge() < 13) {
-            throw new BadRequestException("User must be at least 13 years old");
-        }
-
-        user.setAge(request.getAge());
-        user = userRepository.save(user);
-
-        return mapToUserProfileDTO(user);
-    }
-
-    /**
-     * Step 3: Set category preferences
-     */
-    public UserProfileDTO completeStep3_SetCategoryPreferences(OnboardingStep3Request request) {
-        User user = userRepository.findByDeviceId(request.getDeviceId())
-                .orElseThrow(() -> new BadRequestException("User not found. Please complete Step 1 first."));
-
-        if (request.getPreferredCategoryIds() == null || request.getPreferredCategoryIds().isEmpty()) {
-            throw new BadRequestException("At least one category must be selected");
-        }
-
-        // Convert category IDs to JSON string
-        String categoriesJson = request.getPreferredCategoryIds().stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(",", "[", "]"));
-
-        // Check if user preference exists
-        UserPreference preference = userPreferenceRepository.findByUserId(user.getId())
-                .orElse(new UserPreference());
-
-        preference.setUser(user);
-        preference.setPreferredCategories(categoriesJson);
-        userPreferenceRepository.save(preference);
-
-        return mapToUserProfileDTO(user);
-    }
-
-    /**
-     * Get user profile by device ID
-     */
-    public UserProfileDTO getUserProfile(String deviceId) {
-        User user = userRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
-        return mapToUserProfileDTO(user);
-    }
-
-    /**
-     * Get user preferences with selected categories
-     */
-    public UserPreferenceDTO getUserPreferences(String deviceId) {
-        User user = userRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
-
-        UserPreference preference = userPreferenceRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new BadRequestException("User preferences not set"));
-
-        return mapToUserPreferenceDTO(preference);
-    }
-
-    /**
-     * Update language preference
-     */
-    public UserProfileDTO updateLanguage(String deviceId, String languageCode) {
         if (!SUPPORTED_LANGUAGES.containsKey(languageCode)) {
             throw new BadRequestException("Invalid language code: " + languageCode);
         }
 
-        User user = userRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
+        UserProfile profile = userProfileRepository
+                .findByDeviceId(deviceId)
+                .orElseGet(() -> {
+                    UserProfile newProfile = new UserProfile();
+                    newProfile.setDeviceId(deviceId);
+                    return newProfile;
+                });
 
-        user.setPreferredLanguage(languageCode);
-        user = userRepository.save(user);
+        // Enforce immutability
+        if (profile.getLanguageCode() != null) {
+            throw new BadRequestException("Language already selected and cannot be changed");
+        }
 
-        return mapToUserProfileDTO(user);
+        profile.setLanguageCode(languageCode);
+        profile = userProfileRepository.save(profile);
+
+        return mapToDTO(profile);
     }
 
-    /**
-     * Helper method to map User to UserProfileDTO
-     */
-    private UserProfileDTO mapToUserProfileDTO(User user) {
+    public UserProfileDTO getUserProfile(String deviceId) {
+
+        UserProfile profile = userProfileRepository
+                .findByDeviceId(deviceId)
+                .orElseThrow(() ->
+                        new BadRequestException("User profile not found"));
+
+        return mapToDTO(profile);
+    }
+
+    private UserProfileDTO mapToDTO(UserProfile profile) {
         return new UserProfileDTO(
-                user.getId(),
-                user.getDeviceId(),
-                user.getAge(),
-                user.getPreferredLanguage()
-        );
-    }
-
-    /**
-     * Helper method to map UserPreference to UserPreferenceDTO
-     */
-    private UserPreferenceDTO mapToUserPreferenceDTO(UserPreference preference) {
-        return new UserPreferenceDTO(
-                preference.getId(),
-                preference.getUser().getId(),
-                preference.getPreferredCategories(),
-                "",            // language - empty string
-                "",            // theme - empty string
-                false,         // notificationsEnabled - false
-                preference.getCreatedAt(),
-                preference.getUpdatedAt()
+                profile.getId(),
+                profile.getDeviceId(),
+                profile.getLanguageCode(),
+                profile.getCreatedAt(),
+                profile.getUpdatedAt()
         );
     }
 }

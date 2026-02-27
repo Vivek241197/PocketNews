@@ -22,33 +22,14 @@ public class CategoryController {
     public ResponseEntity<Page<CategoryDTO>> getAllCategories(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<CategoryDTO> categories = categoryService.getAllCategories(pageable);
-        return ResponseEntity.ok(categories);
+
+        Pageable pageable = PageRequest.of(page, Math.min(size, 50));
+        return ResponseEntity.ok(categoryService.getAllCategories(pageable));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CategoryDTO> getCategoryById(@PathVariable Long id) {
-        CategoryDTO category = categoryService.getCategoryById(id);
-        return ResponseEntity.ok(category);
-    }
-
-    @PostMapping
-    public ResponseEntity<CategoryDTO> createCategory(@RequestBody CategoryCreateRequest request) {
-        CategoryDTO category = categoryService.createCategory(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(category);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<CategoryDTO> updateCategory(@PathVariable Long id, @RequestBody CategoryCreateRequest request) {
-        CategoryDTO category = categoryService.updateCategory(id, request);
-        return ResponseEntity.ok(category);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
-        categoryService.deleteCategory(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(categoryService.getCategoryById(id));
     }
 }
 

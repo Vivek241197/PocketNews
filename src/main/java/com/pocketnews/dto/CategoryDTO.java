@@ -1,11 +1,11 @@
 package com.pocketnews.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryDTO {
@@ -14,8 +14,8 @@ public class CategoryDTO {
     private String slug;
     private String description;
     private String iconUrl;
-    private Integer displayOrder;
-    private Boolean isActive;
+    private Integer displayOrder=0;
+    private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

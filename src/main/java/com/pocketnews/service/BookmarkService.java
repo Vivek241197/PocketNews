@@ -1,63 +1,134 @@
 package com.pocketnews.service;
 
 import com.pocketnews.dto.BookmarkResponse;
+import com.pocketnews.dto.NewsDTO;
 import com.pocketnews.entity.Bookmark;
 import com.pocketnews.entity.News;
 import com.pocketnews.exception.ResourceNotFoundException;
 import com.pocketnews.repository.BookmarkRepository;
 import com.pocketnews.repository.NewsRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Optional;
+
+@Transactional
 @Service
 public class BookmarkService {
 
-    @Autowired
-    private BookmarkRepository bookmarkRepository;
+    private final BookmarkRepository bookmarkRepository;
+    private final NewsRepository newsRepository;
 
-    @Autowired
-    private NewsRepository newsRepository;
+    @Value("${bookmark.expiry.days}")
+    private int expiryDays;
 
-    public BookmarkResponse toggleBookmark(Long newsId, String deviceId) {
-        News news = newsRepository.findById(newsId)
-                .orElseThrow(() -> new ResourceNotFoundException("News not found"));
+    public BookmarkService(BookmarkRepository bookmarkRepository,
+                           NewsRepository newsRepository) {
+        this.bookmarkRepository = bookmarkRepository;
+        this.newsRepository = newsRepository;
+    }
 
-        Optional<Bookmark> existingBookmark = bookmarkRepository.findByDeviceIdAndNewsId(deviceId, newsId);
+    /* ============================================================
+       ADD BOOKMARK
+       ============================================================ */
 
-        boolean isBookmarked;
-        if (existingBookmark.isPresent()) {
-            bookmarkRepository.delete(existingBookmark.get());
-            isBookmarked = false;
-        } else {
+    public BookmarkResponse addBookmark(Long newsId, String deviceId) {
+
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        // Return existing active bookmark if present
+        Optional<Bookmark> activeBookmark =
+                bookmarkRepository.findByDeviceIdAndNewsIdAndExpiresAtAfter(deviceId, newsId, now);
+
+        if (activeBookmark.isPresent()) {
+            return new BookmarkResponse(true, activeBookmark.get().getExpiresAt());
+        }
+
+        // Clean up any expired bookmark for this device+news pair
+        bookmarkRepository.deleteByDeviceIdAndNewsIdAndExpiresAtBefore(deviceId, newsId, now);
+
+        try {
+            News news = newsRepository.findById(newsId)
+                    .filter(News::isActive)
+                    .orElseThrow(() -> new ResourceNotFoundException("News not found"));
+
             Bookmark bookmark = new Bookmark();
             bookmark.setDeviceId(deviceId);
             bookmark.setNews(news);
-            bookmarkRepository.save(bookmark);
-            isBookmarked = true;
-        }
+            bookmark.setCreatedAt(now);
+            bookmark.setExpiresAt(now.plusDays(expiryDays));
 
-        long totalBookmarks = bookmarkRepository.countByNewsId(newsId);
-        return new BookmarkResponse(isBookmarked, totalBookmarks);
+            bookmarkRepository.save(bookmark);
+
+            return new BookmarkResponse(true, bookmark.getExpiresAt());
+
+        } catch (DataIntegrityViolationException e) {
+            // Race condition: another request saved it simultaneously
+            Bookmark existing = bookmarkRepository
+                    .findByDeviceIdAndNewsIdAndExpiresAtAfter(deviceId, newsId, now)
+                    .orElseThrow();
+            return new BookmarkResponse(true, existing.getExpiresAt());
+        }
     }
+
+    /* ============================================================
+       REMOVE BOOKMARK
+       ============================================================ */
+
+    public void removeBookmark(Long newsId, String deviceId) {
+        bookmarkRepository.deleteByDeviceIdAndNewsId(deviceId, newsId);
+    }
+
+    /* ============================================================
+       CHECK STATUS
+       ============================================================ */
 
     public BookmarkResponse getBookmarkStatus(Long newsId, String deviceId) {
-        boolean isBookmarked = bookmarkRepository.existsByDeviceIdAndNewsId(deviceId, newsId);
-        long totalBookmarks = bookmarkRepository.countByNewsId(newsId);
-        return new BookmarkResponse(isBookmarked, totalBookmarks);
+
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        return bookmarkRepository
+                .findByDeviceIdAndNewsIdAndExpiresAtAfter(deviceId, newsId, now)
+                .map(b -> new BookmarkResponse(true, b.getExpiresAt()))
+                .orElse(new BookmarkResponse(false, null));
     }
 
-    public Page<Long> getUserBookmarks(String deviceId, Pageable pageable) {
-        Page<Bookmark> bookmarks = bookmarkRepository.findByDeviceId(deviceId, pageable);
-        List<Long> newsIds = bookmarks.getContent().stream()
-                .map(b -> b.getNews().getId())
-                .collect(Collectors.toList());
-        return new PageImpl<>(newsIds, pageable, bookmarks.getTotalElements());
+    /* ============================================================
+       GET USER BOOKMARKS — returns full NewsDTO not just IDs
+       ============================================================ */
+
+    public Page<NewsDTO> getUserBookmarks(String deviceId, Pageable pageable) {
+
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        return bookmarkRepository
+                .findByDeviceIdAndExpiresAtAfter(deviceId, now, pageable)
+                .map(b -> mapNewsToDTO(b.getNews()));
+    }
+
+    /* ============================================================
+       MAPPING
+       ============================================================ */
+
+    private NewsDTO mapNewsToDTO(News news) {
+        return new NewsDTO(
+                news.getId(),
+                news.getCategory().getId(),
+                news.getCategory().getName(),
+                news.getShortHeadline(),
+                news.getShortContent(),
+                news.getImageUrl(),
+                news.getSource(),
+                news.getViewCount(),
+                news.getPublishedAt(),
+                news.getCreatedAt(),
+                news.getUpdatedAt()
+        );
     }
 }
-

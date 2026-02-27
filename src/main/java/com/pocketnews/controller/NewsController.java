@@ -1,73 +1,56 @@
 package com.pocketnews.controller;
 
-import com.pocketnews.dto.NewsDTO;
 import com.pocketnews.dto.NewsCreateRequest;
+import com.pocketnews.dto.NewsDTO;
 import com.pocketnews.service.NewsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/news")
 public class NewsController {
 
-    @Autowired
-    private NewsService newsService;
+    private final NewsService newsService;
 
+    @Value("${app.max-news-per-page:10}")
+    private int pageSize;
+
+    public NewsController(NewsService newsService) {
+        this.newsService = newsService;
+    }
+
+    /**
+     * GET /news        → initial feed (newest first)
+     * GET /news?page=1 → next page (infinite scroll)
+     * GET /news?after= → pull-to-refresh (only new articles)
+     */
     @GetMapping
-    public ResponseEntity<Page<NewsDTO>> getAllNews(
+    public ResponseEntity<Page<NewsDTO>> getFeed(
+            @RequestHeader("Device-Id") String deviceId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<NewsDTO> news = newsService.getAllNews(pageable);
-        return ResponseEntity.ok(news);
-    }
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime after) {
 
-    @GetMapping("/featured")
-    public ResponseEntity<Page<NewsDTO>> getFeaturedNews(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<NewsDTO> news = newsService.getFeaturedNews(pageable);
-        return ResponseEntity.ok(news);
-    }
-
-    @GetMapping("/category/{categoryId}")
-    public ResponseEntity<Page<NewsDTO>> getNewsByCategory(
-            @PathVariable Long categoryId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<NewsDTO> news = newsService.getNewsByCategory(categoryId, pageable);
-        return ResponseEntity.ok(news);
+        Pageable pageable = PageRequest.of(page, pageSize);
+        return ResponseEntity.ok(newsService.getFeed(deviceId, pageable, after));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<NewsDTO> getNewsById(@PathVariable Long id) {
-        NewsDTO news = newsService.getNewsById(id);
-        return ResponseEntity.ok(news);
+        return ResponseEntity.ok(newsService.getNewsById(id));
     }
 
     @PostMapping
-    public ResponseEntity<NewsDTO> createNews(@RequestBody NewsCreateRequest request) {
-        NewsDTO news = newsService.createNews(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(news);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<NewsDTO> updateNews(@PathVariable Long id, @RequestBody NewsCreateRequest request) {
-        NewsDTO news = newsService.updateNews(id, request);
-        return ResponseEntity.ok(news);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteNews(@PathVariable Long id) {
-        newsService.deleteNews(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<NewsDTO> createNews(@Valid @RequestBody NewsCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(newsService.createNews(request));
     }
 }
-

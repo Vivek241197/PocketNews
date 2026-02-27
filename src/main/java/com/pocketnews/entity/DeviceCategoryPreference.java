@@ -1,26 +1,28 @@
 package com.pocketnews.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(
-        name = "bookmarks",
+        name = "device_category_preferences",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"device_id", "news_id"})
+                @UniqueConstraint(columnNames = {"device_id", "category_id"})
         },
         indexes = {
-                @Index(name = "idx_device_id", columnList = "device_id"),
-                @Index(name = "idx_expires_at", columnList = "expires_at")
+                @Index(name = "idx_pref_device", columnList = "device_id"),
+                @Index(name = "idx_pref_category", columnList = "category_id")
         }
 )
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
-public class Bookmark {
+public class DeviceCategoryPreference {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,19 +32,14 @@ public class Bookmark {
     private String deviceId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "news_id", nullable = false)
-    private News news;
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
-
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.expiresAt = createdAt.plusDays(10);
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }
-

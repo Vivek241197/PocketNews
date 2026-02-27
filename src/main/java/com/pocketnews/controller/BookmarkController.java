@@ -1,53 +1,82 @@
 package com.pocketnews.controller;
 
 import com.pocketnews.dto.BookmarkResponse;
+import com.pocketnews.dto.NewsDTO;
 import com.pocketnews.service.BookmarkService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/news/{newsId}/bookmarks")
+@RequestMapping("/bookmarks")
 public class BookmarkController {
 
-    @Autowired
-    private BookmarkService bookmarkService;
+    private final BookmarkService bookmarkService;
 
-    @PostMapping("/toggle")
-    public ResponseEntity<BookmarkResponse> toggleBookmark(
-            @PathVariable Long newsId,
-            @RequestParam String deviceId) {
-        BookmarkResponse response = bookmarkService.toggleBookmark(newsId, deviceId);
-        return ResponseEntity.ok(response);
+    @Value("${app.max-news-per-page:10}")
+    private int pageSize;
+
+    public BookmarkController(BookmarkService bookmarkService) {
+        this.bookmarkService = bookmarkService;
     }
 
-    @GetMapping("/status")
+    /* ============================================================
+       ADD BOOKMARK
+       POST /bookmarks/{newsId}
+       ============================================================ */
+
+    @PostMapping("/{newsId}")
+    public ResponseEntity<BookmarkResponse> addBookmark(
+            @PathVariable Long newsId,
+            @RequestHeader("Device-Id") String deviceId) {
+
+        return ResponseEntity.ok(bookmarkService.addBookmark(newsId, deviceId));
+    }
+
+    /* ============================================================
+       REMOVE BOOKMARK
+       DELETE /bookmarks/{newsId}
+       ============================================================ */
+
+    @DeleteMapping("/{newsId}")
+    public ResponseEntity<Void> removeBookmark(
+            @PathVariable Long newsId,
+            @RequestHeader("Device-Id") String deviceId) {
+
+        bookmarkService.removeBookmark(newsId, deviceId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /* ============================================================
+       CHECK BOOKMARK STATUS
+       GET /bookmarks/{newsId}/status
+       ============================================================ */
+
+    @GetMapping("/{newsId}/status")
     public ResponseEntity<BookmarkResponse> getBookmarkStatus(
             @PathVariable Long newsId,
-            @RequestParam String deviceId) {
-        BookmarkResponse response = bookmarkService.getBookmarkStatus(newsId, deviceId);
-        return ResponseEntity.ok(response);
+            @RequestHeader("Device-Id") String deviceId) {
+
+        return ResponseEntity.ok(bookmarkService.getBookmarkStatus(newsId, deviceId));
     }
-}
 
-@RestController
-@RequestMapping("/user/bookmarks")
-class UserBookmarkController {
-
-    @Autowired
-    private BookmarkService bookmarkService;
+    /* ============================================================
+       GET ALL BOOKMARKS (paginated, full article data)
+       GET /bookmarks?page=0
+       ============================================================ */
 
     @GetMapping
-    public ResponseEntity<Page<Long>> getUserBookmarks(
-            @RequestParam String deviceId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Long> bookmarks = bookmarkService.getUserBookmarks(deviceId, pageable);
-        return ResponseEntity.ok(bookmarks);
+    public ResponseEntity<Page<NewsDTO>> getUserBookmarks(
+            @RequestHeader("Device-Id") String deviceId,
+            @RequestParam(defaultValue = "0") int page) {
+
+        Pageable pageable = PageRequest.of(page, pageSize,
+                Sort.by("createdAt").descending());
+
+        return ResponseEntity.ok(bookmarkService.getUserBookmarks(deviceId, pageable));
     }
 }
-

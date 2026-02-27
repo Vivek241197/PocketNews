@@ -8,16 +8,18 @@ import java.time.ZoneOffset;
 
 @Entity
 @Table(
-        name = "comments",
+        name = "user_profiles",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = "device_id")
+        },
         indexes = {
-                @Index(name = "idx_comment_news", columnList = "news_id"),
-                @Index(name = "idx_comment_device", columnList = "device_id")
+                @Index(name = "idx_user_device", columnList = "device_id")
         }
 )
 @Getter
 @Setter
 @NoArgsConstructor
-public class Comment {
+public class UserProfile {
 
     /* ============================================================
        ID
@@ -28,40 +30,18 @@ public class Comment {
     private Long id;
 
     /* ============================================================
-       RELATIONSHIP
+       DEVICE (UNIQUE)
        ============================================================ */
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "news_id", nullable = false)
-    private News news;
-
-    /* ============================================================
-       OWNER
-       ============================================================ */
-
-    @Column(name = "device_id", nullable = false)
+    @Column(name = "device_id", nullable = false, unique = true)
     private String deviceId;
 
     /* ============================================================
-       CONTENT
+       LANGUAGE (IMMUTABLE AFTER SET)
        ============================================================ */
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String content;
-
-    /* ============================================================
-       METRICS
-       ============================================================ */
-
-    @Column(name = "likes_count", nullable = false)
-    private Integer likesCount = 0;
-
-    /* ============================================================
-       STATUS
-       ============================================================ */
-
-    @Column(name = "is_active", nullable = false)
-    private boolean active = true;
+    @Column(name = "language_code")
+    private String languageCode;
 
     /* ============================================================
        TIMESTAMPS
@@ -89,3 +69,4 @@ public class Comment {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }
+

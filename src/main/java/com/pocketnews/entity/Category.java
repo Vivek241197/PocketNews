@@ -1,14 +1,20 @@
 package com.pocketnews.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
-@Table(name = "categories")
-@Data
+@Table(
+        name = "categories",
+        indexes = {
+                @Index(name = "idx_category_slug", columnList = "slug")
+        }
+)
+@Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Category {
@@ -28,11 +34,11 @@ public class Category {
     @Column(name = "icon_url")
     private String iconUrl;
 
-    @Column(name = "display_order")
+    @Column(name = "display_order", nullable = false)
     private Integer displayOrder = 0;
 
-    @Column(name = "is_active")
-    private Boolean isActive = true;
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -42,13 +48,13 @@ public class Category {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }
-

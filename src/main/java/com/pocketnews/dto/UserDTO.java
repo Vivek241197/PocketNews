@@ -10,9 +10,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class UserDTO {
     private Long id;
-    private String deviceId;          // Device identifier (UUID)
-    private Integer age;              // User age
-    private String preferredLanguage; // User's preferred language
+    private String deviceId;          // Device identifier (UUID)// User age
+    private String languageCode; // User's preferred language
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

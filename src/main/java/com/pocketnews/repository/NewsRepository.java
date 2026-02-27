@@ -8,25 +8,68 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
 public interface NewsRepository extends JpaRepository<News, Long> {
-    Page<News> findByCategoryId(Long categoryId, Pageable pageable);
 
-    Page<News> findByIsFeatured(Boolean isFeatured, Pageable pageable);
+    /* ============================================================
+       FEED BY PREFERRED CATEGORIES (initial load)
+       ============================================================ */
+    Page<News> findByCategoryIdInAndActiveTrueOrderByPublishedAtDesc(
+            List<Long> categoryIds,
+            Pageable pageable
+    );
 
-    @Query("SELECT n FROM News n WHERE n.category.id = :categoryId AND n.isFeatured = true")
-    List<News> findFeaturedNewsByCategory(@Param("categoryId") Long categoryId);
+    /* ============================================================
+       FEED BY PREFERRED CATEGORIES — REFRESH (only newer than `after`)
+       ============================================================ */
+    Page<News> findByCategoryIdInAndActiveTrueAndPublishedAtAfterOrderByPublishedAtDesc(
+            List<Long> categoryIds,
+            LocalDateTime after,
+            Pageable pageable
+    );
 
-    Page<News> findByTitleIgnoreCaseContaining(String title, Pageable pageable);
+    /* ============================================================
+       BALANCED FEED — per-category slice, after timestamp
+       (used internally by getBalancedFeed when `after` is present)
+       ============================================================ */
+    @Query("""
+            SELECT n FROM News n
+            WHERE n.category.id IN :categoryIds
+              AND n.active = true
+              AND n.publishedAt > :after
+            ORDER BY n.publishedAt DESC
+            """)
+    Page<News> findByCategoryIdsAndAfter(
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("after") LocalDateTime after,
+            Pageable pageable
+    );
 
-    // Delete news articles that have expired (older than 5 days)
+    /* ============================================================
+       TRENDING FEED (fallback)
+       ============================================================ */
+    Page<News> findByActiveTrueOrderByViewCountDesc(Pageable pageable);
+
+    /* ============================================================
+       LATEST NEWS
+       ============================================================ */
+    Page<News> findByActiveTrueOrderByPublishedAtDesc(Pageable pageable);
+
+    /* ============================================================
+       INCREMENT VIEW COUNT
+       ============================================================ */
     @Modifying
-    @Transactional
-    @Query("DELETE FROM News n WHERE n.expiresAt < :currentTime")
-    long deleteByExpiresAtBefore(@Param("currentTime") LocalDateTime currentTime);
-}
+    @Query("UPDATE News n SET n.viewCount = n.viewCount + 1 WHERE n.id = :id")
+    void incrementViewCount(@Param("id") Long id);
 
+    /* ============================================================
+       DELETE EXPIRED NEWS
+       ============================================================ */
+    @Modifying
+    @Query("DELETE FROM News n WHERE n.expiresAt < :now")
+    long deleteByExpiresAtBefore(@Param("now") LocalDateTime now);
+}

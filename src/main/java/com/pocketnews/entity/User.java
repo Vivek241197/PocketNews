@@ -1,48 +1,44 @@
 package com.pocketnews.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
-@Table(name = "users")
-@Data
+@Table(
+        name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = "device_id")
+        },
+        indexes = {
+                @Index(name = "idx_user_device", columnList = "device_id")
+        }
+)
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Anonymous user identification (device ID or session ID)
-    @Column(nullable = false, unique = true)
+    @Column(name = "device_id", nullable = false, unique = true)
     private String deviceId;
 
-    // User demographics
     @Column(nullable = false)
-    private Integer age;
+    private Integer age = 18;
 
-    @Column(nullable = false)
-    private String preferredLanguage; // e.g., "en", "hi", "ta", "te", etc.
+    @Column(name = "preferred_language", nullable = false)
+    private String preferredLanguage = "en";
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }
-

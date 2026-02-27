@@ -7,6 +7,7 @@ import com.pocketnews.entity.News;
 import com.pocketnews.exception.ResourceNotFoundException;
 import com.pocketnews.repository.CommentRepository;
 import com.pocketnews.repository.NewsRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -16,25 +17,45 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class CommentService {
+    private final CommentRepository commentRepository;
+    private final NewsRepository newsRepository;
 
-    @Autowired
-    private CommentRepository commentRepository;
-
-    @Autowired
-    private NewsRepository newsRepository;
-
-    public Page<CommentDTO> getCommentsByNewsId(Long newsId, Pageable pageable) {
-        Page<Comment> comments = commentRepository.findByNewsId(newsId, pageable);
-        List<CommentDTO> dtos = comments.getContent().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
-        return new PageImpl<>(dtos, pageable, comments.getTotalElements());
+    public CommentService(CommentRepository commentRepository,
+                          NewsRepository newsRepository) {
+        this.commentRepository = commentRepository;
+        this.newsRepository = newsRepository;
     }
 
-    public CommentDTO createComment(Long newsId, String deviceId, CommentCreateRequest request) {
+    /* ============================================================
+       GET COMMENTS (ONLY ACTIVE + NEWS MUST BE ACTIVE)
+       ============================================================ */
+
+    public Page<CommentDTO> getCommentsByNewsId(Long newsId, Pageable pageable) {
+
         News news = newsRepository.findById(newsId)
-                .orElseThrow(() -> new ResourceNotFoundException("News not found"));
+                .filter(News::isActive)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("News not found or inactive"));
+
+        return commentRepository
+                .findByNewsIdAndActiveTrueOrderByCreatedAtDesc(newsId, pageable)
+                .map(this::mapToDTO);
+    }
+
+    /* ============================================================
+       CREATE COMMENT
+       ============================================================ */
+
+    public CommentDTO createComment(Long newsId,
+                                    String deviceId,
+                                    CommentCreateRequest request) {
+
+        News news = newsRepository.findById(newsId)
+                .filter(News::isActive)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("News not found or inactive"));
 
         Comment comment = new Comment();
         comment.setNews(news);
@@ -42,32 +63,60 @@ public class CommentService {
         comment.setContent(request.getContent());
 
         comment = commentRepository.save(comment);
+
         return mapToDTO(comment);
     }
 
-    public CommentDTO updateComment(Long commentId, CommentCreateRequest request) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment not found"));
+    /* ============================================================
+       UPDATE COMMENT (ONLY OWNER + ACTIVE)
+       ============================================================ */
+
+    public CommentDTO updateComment(Long newsId,
+                                    Long commentId,
+                                    String deviceId,
+                                    CommentCreateRequest request) {
+
+        Comment comment = commentRepository
+                .findByIdAndNewsIdAndDeviceIdAndActiveTrue(
+                        commentId, newsId, deviceId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Comment not found"));
 
         comment.setContent(request.getContent());
-        comment = commentRepository.save(comment);
+
         return mapToDTO(comment);
     }
 
-    public void deleteComment(Long commentId) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment not found"));
-        commentRepository.delete(comment);
+    /* ============================================================
+       SOFT DELETE COMMENT (ONLY OWNER)
+       ============================================================ */
+
+    public void deleteComment(Long newsId,
+                              Long commentId,
+                              String deviceId) {
+
+        Comment comment = commentRepository
+                .findByIdAndNewsIdAndDeviceIdAndActiveTrue(
+                        commentId, newsId, deviceId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Comment not found"));
+
+        comment.setActive(false);
     }
 
+    /* ============================================================
+       DTO MAPPING
+       ============================================================ */
+
     private CommentDTO mapToDTO(Comment comment) {
+
         return new CommentDTO(
                 comment.getId(),
                 comment.getNews().getId(),
-                comment.getDeviceId(),         // UUID of the user (device identifier)
+                comment.getDeviceId(),
                 comment.getContent(),
                 comment.getLikesCount(),
-                comment.getIsActive(),
+                comment.isActive(),
                 comment.getCreatedAt(),
                 comment.getUpdatedAt()
         );
