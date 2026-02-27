@@ -2,13 +2,11 @@ FROM maven:3.9.6-eclipse-temurin-21-alpine
 
 WORKDIR /app
 
-# Copy pom.xml first (for dependency caching)
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source code
 COPY src ./src
+
 EXPOSE 8080
 
-# Run directly with Maven (no JAR needed)
-ENTRYPOINT ["mvn", "spring-boot:run"]
+ENTRYPOINT ["mvn", "spring-boot:run", "-Dspring-boot.run.profiles=default", "-Dspring-boot.run.jvmArguments=-Dserver.port=${PORT:-8080}"]
