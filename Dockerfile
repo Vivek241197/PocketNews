@@ -9,4 +9,4 @@ COPY src ./src
 
 EXPOSE 8080
 
-ENTRYPOINT ["mvn", "spring-boot:run", "-Dspring-boot.run.profiles=default", "-Dspring-boot.run.jvmArguments=-Dserver.port=${PORT:-10000}"]
+ENTRYPOINT ["mvn", "spring-boot:run", "-Dspring-boot.run.profiles=default", "-Dspring-boot.run.jvmArguments=-Dserver.port=${PORT:-10000} -Ddebug"]
