@@ -37,3 +37,9 @@ build/
 
 ### Mac OS ###
 .DS_Store
+### Secrets — never commit these ###
+src/main/resources/application-default.properties
+src/main/resources/application-prod.properties
+src/main/resources/application.properties
+*.env
+.env
