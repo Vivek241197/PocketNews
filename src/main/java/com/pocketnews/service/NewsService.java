@@ -1,4 +1,6 @@
 package com.pocketnews.service;
+
+import com.pocketnews.dto.CategoryDTO;
 import com.pocketnews.dto.NewsDTO;
 import com.pocketnews.dto.NewsCreateRequest;
 import com.pocketnews.entity.News;
@@ -32,26 +34,23 @@ public class NewsService {
             CategoryRepository categoryRepository,
             CategoryPreferenceService preferenceService,
             AiSummarizationService aiSummarizationService) {
-
         this.newsRepository = newsRepository;
         this.categoryRepository = categoryRepository;
         this.preferenceService = preferenceService;
         this.aiSummarizationService = aiSummarizationService;
     }
 
-    /* ============================================================
-       MAIN FEED
-       `after` — when non-null, only returns articles published after
-                 that timestamp (pull-to-refresh)
-       ============================================================ */
-
     public Page<NewsDTO> getFeed(String deviceId, Pageable pageable, LocalDateTime after) {
 
-        List<Long> preferredCategoryIds = preferenceService.getPreferences(deviceId);
+        // ✅ Extract Long IDs from CategoryDTO list
+        List<Long> preferredCategoryIds = preferenceService.getPreferences(deviceId)
+                .stream()
+                .map(CategoryDTO::getId)
+                .toList();
 
         Page<News> newsPage;
 
-        if (preferredCategoryIds == null || preferredCategoryIds.isEmpty()) {
+        if (preferredCategoryIds.isEmpty()) {
             newsPage = getBalancedFeed(pageable, after);
         } else {
             if (after != null) {
@@ -67,10 +66,6 @@ public class NewsService {
 
         return newsPage.map(this::mapToDTO);
     }
-
-    /* ============================================================
-       BALANCED FEED (equal distribution across all categories)
-       ============================================================ */
 
     private Page<News> getBalancedFeed(Pageable pageable, LocalDateTime after) {
 
@@ -94,12 +89,14 @@ public class NewsService {
             List<News> news;
 
             if (after != null) {
+                // ✅ Use correct method name
                 news = newsRepository
                         .findByCategoryIdsAndAfter(List.of(categoryId), after, categoryPage)
                         .getContent();
             } else {
                 news = newsRepository
-                        .findByCategoryIdInAndActiveTrueOrderByPublishedAtDesc(List.of(categoryId), categoryPage)
+                        .findByCategoryIdInAndActiveTrueOrderByPublishedAtDesc(
+                                List.of(categoryId), categoryPage)
                         .getContent();
             }
 
@@ -111,42 +108,31 @@ public class NewsService {
         }
 
         long totalCount = after != null
-                ? newsRepository.findByCategoryIdsAndAfter(categoryIds, after, pageable).getTotalElements()
-                : newsRepository.findByCategoryIdInAndActiveTrueOrderByPublishedAtDesc(categoryIds, pageable).getTotalElements();
+                ? newsRepository.findByCategoryIdsAndAfter(
+                categoryIds, after, pageable).getTotalElements()
+                : newsRepository.findByCategoryIdInAndActiveTrueOrderByPublishedAtDesc(
+                categoryIds, pageable).getTotalElements();
 
         return new PageImpl<>(balanced, pageable, totalCount);
     }
 
-    /* ============================================================
-       GET SINGLE NEWS (INCREMENT VIEW COUNT)
-       ============================================================ */
-
     public NewsDTO getNewsById(Long id) {
-
         News news = newsRepository.findById(id)
                 .filter(News::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("News not found"));
 
         newsRepository.incrementViewCount(id);
-
         return mapToDTO(news);
     }
 
-    /* ============================================================
-       CREATE NEWS — AI summarization happens here, once at insert time
-       ============================================================ */
-
     public NewsDTO createNews(NewsCreateRequest request) {
-
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        // Use `description` if `content` is missing/short (common with news APIs)
         String rawContent = (request.getContent() != null && request.getContent().length() > 100)
                 ? request.getContent()
                 : (request.getDescription() != null ? request.getDescription() : request.getContent());
 
-        // AI generates shortHeadline + shortContent in one call
         AiSummarizationService.SummaryResult summary =
                 aiSummarizationService.summarize(request.getTitle(), rawContent);
 
@@ -161,13 +147,8 @@ public class NewsService {
         news.setPublishedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         news = newsRepository.save(news);
-
         return mapToDTO(news);
     }
-
-    /* ============================================================
-       DTO MAPPING
-       ============================================================ */
 
     private NewsDTO mapToDTO(News news) {
         return new NewsDTO(

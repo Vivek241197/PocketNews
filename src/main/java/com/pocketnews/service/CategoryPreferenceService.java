@@ -1,10 +1,12 @@
 package com.pocketnews.service;
 
+import com.pocketnews.dto.CategoryDTO;
 import com.pocketnews.entity.Category;
 import com.pocketnews.entity.DeviceCategoryPreference;
 import com.pocketnews.exception.ResourceNotFoundException;
 import com.pocketnews.repository.CategoryRepository;
 import com.pocketnews.repository.DeviceCategoryPreferenceRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,11 +70,38 @@ public class CategoryPreferenceService {
     /**
      * Fetch selected category IDs for device.
      */
-    public List<Long> getPreferences(String deviceId) {
+    public List<CategoryDTO> getPreferences(String deviceId) {
 
         return preferenceRepository.findByDeviceId(deviceId)
                 .stream()
-                .map(pref -> pref.getCategory().getId())
-                .toList();
+                .map(pref -> {
+                    Category c = pref.getCategory();
+                    return new CategoryDTO(c.getId(),
+                            c.getName(),
+                            c.getSlug(),
+                            c.getDescription(),
+                            c.getIconUrl(),
+                            c.getDisplayOrder(),
+                            c.isActive(),
+                            c.getCreatedAt(),
+                            c.getUpdatedAt()
+                    );
+                }).toList();
+    }
+        public List<CategoryDTO> getAvailableCategories() {
+            return categoryRepository.findByActiveTrue(Pageable.unpaged())
+                    .stream()
+                    .map(c -> new CategoryDTO(
+                            c.getId(),
+                            c.getName(),
+                            c.getSlug(),
+                            c.getDescription(),
+                            c.getIconUrl(),
+                            c.getDisplayOrder(),
+                            c.isActive(),
+                            c.getCreatedAt(),
+                            c.getUpdatedAt()
+                    ))
+                    .toList();
     }
 }

@@ -1,6 +1,7 @@
 package com.pocketnews.controller;
 
 
+import com.pocketnews.dto.CategoryDTO;
 import com.pocketnews.service.CategoryPreferenceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -31,9 +32,14 @@ public class CategoryPreferenceController {
         }
 
     @GetMapping("/categories")
-    public ResponseEntity<List<Long>> getPreferences(
+    public ResponseEntity<List<CategoryDTO>> getPreferences(
             @RequestHeader("Device-Id") String deviceId) {
 
         return ResponseEntity.ok(preferenceService.getPreferences(deviceId));
+    }
+
+    @GetMapping("/categories/available")
+    public ResponseEntity<List<CategoryDTO>> getAvailableCategories() {
+        return ResponseEntity.ok(preferenceService.getAvailableCategories());
     }
 }
