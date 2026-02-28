@@ -36,7 +36,7 @@ public class OnboardingController {
             @RequestBody OnboardingLanguageRequest request) {
 
         UserProfileDTO response =
-                onboardingService.setLanguageOnce(deviceId, request.getLanguageCode());
+                onboardingService.setLanguage(deviceId, request.getLanguageCode());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
