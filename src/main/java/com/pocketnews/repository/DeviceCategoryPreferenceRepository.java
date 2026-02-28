@@ -4,6 +4,8 @@ import com.pocketnews.entity.DeviceCategoryPreference;
 import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -13,5 +15,6 @@ public interface DeviceCategoryPreferenceRepository extends JpaRepository<Device
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Transactional
-    void deleteByDeviceId(String deviceId);
+    @Query("DELETE FROM DeviceCategoryPreference d WHERE d.deviceId = :deviceId")
+    void deleteByDeviceId(@Param("deviceId") String deviceId);
 }
