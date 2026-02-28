@@ -19,7 +19,7 @@ public class NewSchedular {
 
     // Fetch new articles every 1 hour
 
-    @Scheduled(fixedRateString = "PT1H")
+    @Scheduled(initialDelay = 0, fixedRate = 3600000)
     public void fetchNews() {
         logger.info("Scheduler triggered: fetching RSS news...");
         newsIngestionService.ingestAllFeeds(); // ✅ updated method name
