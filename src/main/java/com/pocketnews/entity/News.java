@@ -14,7 +14,6 @@ import java.time.ZoneOffset;
         indexes = {
                 @Index(name = "idx_news_category", columnList = "category_id"),
                 @Index(name = "idx_news_published", columnList = "published_at"),
-                @Index(name = "idx_news_view_count", columnList = "view_count"),
                 @Index(name = "idx_news_source_url", columnList = "source_url")
         }
 )
@@ -27,61 +26,34 @@ public class News {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /* ============================================================
-       BASIC INFO
-       ============================================================ */
-
-    @Column(nullable = false, length = 500)
-    private String title;
-
-    @Column(name = "short_headline", nullable = false, length = 300)
+    // AI generated — shown as card title
+    @Column(name = "short_headline", nullable = false, length = 100)
     private String shortHeadline;
 
+    // AI generated — 60 word summary shown on card
     @Column(name = "short_content", nullable = false, columnDefinition = "TEXT")
     private String shortContent;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String content;
+    // Shown at bottom — user taps to read full article
+    @Column(name = "source_url", nullable = false, length = 500)
+    private String sourceUrl;
 
-    @Column(name = "image_url")
-    private String imageUrl;
-
-    @Column(name = "source")
+    // Source name shown with URL e.g "Read more on NDTV"
+    @Column(name = "source", length = 100)
     private String source;
 
-    /* ============================================================
-       RELATIONSHIP
-       ============================================================ */
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    /* ============================================================
-       METRICS
-       ============================================================ */
-
     @Column(name = "view_count", nullable = false)
     private Long viewCount = 0L;
 
-    /* ============================================================
-       STATUS
-       ============================================================ */
-
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
-
-    /* ============================================================
-       TIMESTAMPS
-       ============================================================ */
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-
 
     @Column(name = "published_at", nullable = false)
     private LocalDateTime publishedAt;
@@ -89,26 +61,19 @@ public class News {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    @Column(name = "source_url")
-    private String sourceUrl;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    /* ============================================================
-       LIFECYCLE CALLBACKS
-       ============================================================ */
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         this.createdAt = now;
         this.updatedAt = now;
-
-        if (this.publishedAt == null) {
-            this.publishedAt = now;
-        }
-
-        if (this.expiresAt == null) {
-            this.expiresAt = now.plusDays(2);
-        }
+        if (this.publishedAt == null) this.publishedAt = now;
+        if (this.expiresAt == null) this.expiresAt = now.plusDays(2);
     }
 
     @PreUpdate

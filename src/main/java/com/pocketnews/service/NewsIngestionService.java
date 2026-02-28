@@ -87,13 +87,11 @@ import java.util.List;
 
                         News news = new News();
                         news.setCategory(category);
-                        news.setTitle(raw.title());
-                        news.setContent(content);
                         news.setShortHeadline(result.shortHeadline());
                         news.setShortContent(result.shortContent());
                         news.setImageUrl(raw.imageUrl());
                         news.setSource(raw.sourceName());
-                        news.setSourceUrl(raw.sourceUrl());
+                        news.setSourceUrl(raw.sourceUrl());   // ✅ full article link
                         news.setPublishedAt(LocalDateTime.now(ZoneOffset.UTC));
                         news.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(retentionDays));
                         news.setActive(true);

@@ -138,8 +138,6 @@ public class NewsService {
 
         News news = new News();
         news.setCategory(category);
-        news.setTitle(request.getTitle());
-        news.setContent(rawContent);
         news.setShortHeadline(summary.shortHeadline());
         news.setShortContent(summary.shortContent());
         news.setImageUrl(request.getImageUrl());
@@ -159,10 +157,9 @@ public class NewsService {
                 news.getShortContent(),
                 news.getImageUrl(),
                 news.getSource(),
+                news.getSourceUrl(),
                 news.getViewCount(),
-                news.getPublishedAt(),
-                news.getCreatedAt(),
-                news.getUpdatedAt()
+                news.getPublishedAt()
         );
     }
 }

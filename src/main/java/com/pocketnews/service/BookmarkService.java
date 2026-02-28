@@ -109,14 +109,14 @@ public class BookmarkService {
 
         return bookmarkRepository
                 .findByDeviceIdAndExpiresAtAfter(deviceId, now, pageable)
-                .map(b -> mapNewsToDTO(b.getNews()));
+                .map(b -> mapToDTO(b.getNews()));
     }
 
     /* ============================================================
        MAPPING
        ============================================================ */
 
-    private NewsDTO mapNewsToDTO(News news) {
+    private NewsDTO mapToDTO(News news) {
         return new NewsDTO(
                 news.getId(),
                 news.getCategory().getId(),
@@ -125,10 +125,9 @@ public class BookmarkService {
                 news.getShortContent(),
                 news.getImageUrl(),
                 news.getSource(),
+                news.getSourceUrl(),
                 news.getViewCount(),
-                news.getPublishedAt(),
-                news.getCreatedAt(),
-                news.getUpdatedAt()
+                news.getPublishedAt()
         );
     }
 }
