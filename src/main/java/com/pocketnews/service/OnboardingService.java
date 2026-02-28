@@ -36,7 +36,7 @@ public class OnboardingService {
         );
     }
 
-    public UserProfileDTO setLanguageOnce(String deviceId, String languageCode) {
+    public UserProfileDTO setLanguage(String deviceId, String languageCode) {
 
         if (!SUPPORTED_LANGUAGES.containsKey(languageCode)) {
             throw new BadRequestException("Invalid language code: " + languageCode);
@@ -49,11 +49,6 @@ public class OnboardingService {
                     newProfile.setDeviceId(deviceId);
                     return newProfile;
                 });
-
-        // Enforce immutability
-        if (profile.getLanguageCode() != null) {
-            throw new BadRequestException("Language already selected and cannot be changed");
-        }
 
         profile.setLanguageCode(languageCode);
         profile = userProfileRepository.save(profile);
