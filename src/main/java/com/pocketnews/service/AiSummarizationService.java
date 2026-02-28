@@ -12,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.List;
+
 /**
  * Calls the Claude API to generate a short headline and 60-word summary
  * from raw news content. Results are stored in the DB at insert time
@@ -155,5 +157,117 @@ public class AiSummarizationService {
         String[] words = text.trim().split("\\s+");
         if (words.length <= maxWords) return text;
         return String.join(" ", java.util.Arrays.copyOfRange(words, 0, maxWords));
+    }
+
+    public record AiResult(
+            String shortHeadline,
+            String shortContent,
+            String assignedCategory,  // slug assigned by Claude
+            boolean isDuplicate       // Claude says if it's duplicate
+    ) {}
+
+    public AiResult analyzeArticle(String title, String content,
+                                   List<String> categorySlugs,
+                                   List<String> recentHeadlines) {
+        try {
+            return callClaudeForAnalysis(title, content, categorySlugs, recentHeadlines);
+        } catch (Exception e) {
+            logger.error("Claude analysis failed: {}", e.getMessage());
+            return fallbackResult(title, content);
+        }
+    }
+
+    private AiResult callClaudeForAnalysis(String title, String content,
+                                           List<String> categorySlugs,
+                                           List<String> recentHeadlines) {
+        try {
+            String prompt = buildAnalysisPrompt(title, content, categorySlugs, recentHeadlines);
+
+            ObjectNode requestBody = objectMapper.createObjectNode();
+            requestBody.put("model", MODEL);
+            requestBody.put("max_tokens", 400);
+
+            ArrayNode messages = requestBody.putArray("messages");
+            ObjectNode message = messages.addObject();
+            message.put("role", "user");
+            message.put("content", prompt);
+
+            String responseBody = webClient.post()
+                    .uri(CLAUDE_API_URL)
+                    .header("x-api-key", apiKey)
+                    .header("anthropic-version", ANTHROPIC_VERSION)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            return parseAnalysisResponse(responseBody);
+        }
+        catch (Exception e){
+            return null;
+        }
+    }
+
+    private String buildAnalysisPrompt(String title, String content,
+                                       List<String> categorySlugs,
+                                       List<String> recentHeadlines) {
+        return """
+            You are a news editor AI. Given a news article, do these 3 tasks:
+
+            1. CATEGORY: Assign exactly one category from this list: %s
+               Choose the most relevant one based on the article content.
+
+            2. DUPLICATE: Check if this article is about the same event as any of these recent headlines:
+               %s
+               Reply YES if it covers the same story, NO if it's different.
+
+            3. SUMMARIZE: Generate a short headline (max 10 words) and a 60-word neutral summary.
+
+            Respond in EXACTLY this format with no other text:
+            CATEGORY: <slug>
+            DUPLICATE: <YES or NO>
+            SHORT_HEADLINE: <your headline>
+            SHORT_CONTENT: <your 60-word summary>
+
+            TITLE: %s
+            CONTENT: %s
+            """.formatted(
+                String.join(", ", categorySlugs),
+                recentHeadlines.isEmpty() ? "none" : String.join("\n", recentHeadlines),
+                title,
+                content
+        );
+    }
+
+    private AiResult parseAnalysisResponse(String responseBody) throws Exception {
+        JsonNode root = objectMapper.readTree(responseBody);
+        String text = root.path("content").get(0).path("text").asText();
+
+        String category = "";
+        boolean isDuplicate = false;
+        String shortHeadline = "";
+        String shortContent = "";
+
+        for (String line : text.split("\n")) {
+            if (line.startsWith("CATEGORY:"))
+                category = line.substring("CATEGORY:".length()).trim();
+            else if (line.startsWith("DUPLICATE:"))
+                isDuplicate = line.substring("DUPLICATE:".length()).trim().equalsIgnoreCase("YES");
+            else if (line.startsWith("SHORT_HEADLINE:"))
+                shortHeadline = line.substring("SHORT_HEADLINE:".length()).trim();
+            else if (line.startsWith("SHORT_CONTENT:"))
+                shortContent = line.substring("SHORT_CONTENT:".length()).trim();
+        }
+
+        return new AiResult(shortHeadline, shortContent, category, isDuplicate);
+    }
+
+    private AiResult fallbackResult(String title, String content) {
+        return new AiResult(
+                truncateToWords(title, 10),
+                truncateToWords(content != null ? content : title, 60) + "...",
+                "top-stories",
+                false
+        );
     }
 }

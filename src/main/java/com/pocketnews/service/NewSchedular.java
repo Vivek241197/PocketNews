@@ -18,13 +18,13 @@ public class NewSchedular {
     }
 
     // Fetch new articles every 1 hour
+
     @Scheduled(fixedRateString = "PT1H")
     public void fetchNews() {
-        logger.info("Scheduler triggered: fetching news...");
-        newsIngestionService.ingestAllCategories();
+        logger.info("Scheduler triggered: fetching RSS news...");
+        newsIngestionService.ingestAllFeeds(); // ✅ updated method name
     }
 
-    // Delete expired articles every day at midnight UTC
     @Scheduled(cron = "0 0 0 * * *")
     public void cleanupExpiredNews() {
         logger.info("Scheduler triggered: cleaning up expired news...");
