@@ -15,6 +15,7 @@ import java.util.List;
 @Repository
 public interface NewsRepository extends JpaRepository<News, Long> {
 
+    boolean existsBySourceUrl(String sourceUrl);
     /* ============================================================
        FEED BY PREFERRED CATEGORIES (initial load)
        ============================================================ */

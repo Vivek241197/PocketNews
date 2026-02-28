@@ -14,7 +14,8 @@ import java.time.ZoneOffset;
         indexes = {
                 @Index(name = "idx_news_category", columnList = "category_id"),
                 @Index(name = "idx_news_published", columnList = "published_at"),
-                @Index(name = "idx_news_view_count", columnList = "view_count")
+                @Index(name = "idx_news_view_count", columnList = "view_count"),
+                @Index(name = "idx_news_source_url", columnList = "source_url")
         }
 )
 @Getter
@@ -87,6 +88,9 @@ public class News {
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
+
+    @Column(name = "source_url")
+    private String sourceUrl;
 
     /* ============================================================
        LIFECYCLE CALLBACKS
