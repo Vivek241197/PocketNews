@@ -205,7 +205,8 @@ public class AiSummarizationService {
             return parseAnalysisResponse(responseBody);
         }
         catch (Exception e){
-            return null;
+            logger.error("Claude analysis API call failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Claude analysis API call failed", e);
         }
     }
 
