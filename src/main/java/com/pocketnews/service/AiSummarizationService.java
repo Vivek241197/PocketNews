@@ -235,7 +235,8 @@ public class AiSummarizationService {
            %s
            Reply YES if it covers the same story, NO if it's different.
 
-        3. SUMMARIZE: Generate a short headline (max 10 words) and a 60-word neutral summary.
+        3. SUMMARIZE: Generate a short headline (max 10 words) and a summary of\s
+           EXACTLY 60 words — count carefully. No more, no less.
 
         Respond in EXACTLY this format with no other text:
         CATEGORY: <slug>
