@@ -85,6 +85,8 @@ import java.util.List;
 
         private String cleanHtml(String text) {
             if (text == null) return null;
-            return text.replaceAll("<[^>]*>", "").trim();
+            return text.replaceAll("<[^>]*>", "")  // remove HTML tags
+                    .replaceAll("\\s+", " ")    // ✅ normalize all whitespace including \t
+                    .trim();
         }
 }

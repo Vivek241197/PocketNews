@@ -213,34 +213,45 @@ public class AiSummarizationService {
     private String buildAnalysisPrompt(String title, String content,
                                        List<String> categorySlugs,
                                        List<String> recentHeadlines) {
+
+        // ✅ Limit to last 10 headlines, truncated to 50 chars each
+        List<String> limitedHeadlines = recentHeadlines.stream()
+                .limit(10)
+                .map(h -> h.length() > 50 ? h.substring(0, 50) : h)
+                .toList();
+
+        // ✅ Limit content to 300 chars to keep prompt small
+        String truncatedContent = content != null && content.length() > 300
+                ? content.substring(0, 300)
+                : content;
+
         return """
-            You are a news editor AI. Given a news article, do these 3 tasks:
+        You are a news editor AI. Given a news article, do these 3 tasks:
 
-            1. CATEGORY: Assign exactly one category from this list: %s
-               Choose the most relevant one based on the article content.
+        1. CATEGORY: Assign exactly one category from this list: %s
+           Choose the most relevant one based on the article content.
 
-            2. DUPLICATE: Check if this article is about the same event as any of these recent headlines:
-               %s
-               Reply YES if it covers the same story, NO if it's different.
+        2. DUPLICATE: Check if this article is about the same event as any of these recent headlines:
+           %s
+           Reply YES if it covers the same story, NO if it's different.
 
-            3. SUMMARIZE: Generate a short headline (max 10 words) and a 60-word neutral summary.
+        3. SUMMARIZE: Generate a short headline (max 10 words) and a 60-word neutral summary.
 
-            Respond in EXACTLY this format with no other text:
-            CATEGORY: <slug>
-            DUPLICATE: <YES or NO>
-            SHORT_HEADLINE: <your headline>
-            SHORT_CONTENT: <your 60-word summary>
+        Respond in EXACTLY this format with no other text:
+        CATEGORY: <slug>
+        DUPLICATE: <YES or NO>
+        SHORT_HEADLINE: <your headline>
+        SHORT_CONTENT: <your 60-word summary>
 
-            TITLE: %s
-            CONTENT: %s
-            """.formatted(
+        TITLE: %s
+        CONTENT: %s
+        """.formatted(
                 String.join(", ", categorySlugs),
-                recentHeadlines.isEmpty() ? "none" : String.join("\n", recentHeadlines),
+                limitedHeadlines.isEmpty() ? "none" : String.join("\n", limitedHeadlines),
                 title,
-                content
+                truncatedContent  // ✅ truncated content instead of full content
         );
     }
-
     private AiResult parseAnalysisResponse(String responseBody) throws Exception {
         JsonNode root = objectMapper.readTree(responseBody);
         String text = root.path("content").get(0).path("text").asText();
