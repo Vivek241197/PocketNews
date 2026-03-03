@@ -214,43 +214,36 @@ public class AiSummarizationService {
                                        List<String> categorySlugs,
                                        List<String> recentHeadlines) {
 
-        // ✅ Limit to last 10 headlines, truncated to 50 chars each
         List<String> limitedHeadlines = recentHeadlines.stream()
                 .limit(10)
                 .map(h -> h.length() > 50 ? h.substring(0, 50) : h)
                 .toList();
 
-        // ✅ Limit content to 300 chars to keep prompt small
         String truncatedContent = content != null && content.length() > 300
                 ? content.substring(0, 300)
                 : content;
 
         return """
-        You are a news editor AI. Given a news article, do these 3 tasks:
+        You are a news editor AI. Analyze this article and respond in EXACTLY the format below.
 
-        1. CATEGORY: Assign exactly one category from this list: %s
-           Choose the most relevant one based on the article content.
+        AVAILABLE CATEGORIES: %s
 
-        2. DUPLICATE: Check if this article is about the same event as any of these recent headlines:
-           %s
-           Reply YES if it covers the same story, NO if it's different.
+        RECENT HEADLINES (for duplicate check):
+        %s
 
-        3. SUMMARIZE: Generate a short headline (max 10 words) and a summary of\s
-           EXACTLY 60 words — count carefully. No more, no less.
+        ARTICLE TITLE: %s
+        ARTICLE CONTENT: %s
 
-        Respond in EXACTLY this format with no other text:
-        CATEGORY: <slug>
-        DUPLICATE: <YES or NO>
-        SHORT_HEADLINE: <your headline>
-        SHORT_CONTENT: <your 60-word summary>
-
-        TITLE: %s
-        CONTENT: %s
+        YOUR RESPONSE (follow this format exactly, no extra text):
+        CATEGORY: [pick one slug from available categories]
+        DUPLICATE: [YES if same event as recent headlines, NO if different]
+        SHORT_HEADLINE: [your own 10-word max headline, do NOT copy the title]
+        SHORT_CONTENT: [write exactly 60 words summarizing who, what, when, where - count carefully]
         """.formatted(
                 String.join(", ", categorySlugs),
                 limitedHeadlines.isEmpty() ? "none" : String.join("\n", limitedHeadlines),
                 title,
-                truncatedContent  // ✅ truncated content instead of full content
+                truncatedContent
         );
     }
     private AiResult parseAnalysisResponse(String responseBody) throws Exception {
@@ -277,9 +270,18 @@ public class AiSummarizationService {
     }
 
     private AiResult fallbackResult(String title, String content) {
+        // ✅ Pad to 60 words if content is too short
+        String summary = truncateToWords(content != null ? content : title, 60);
+        String[] words = summary.trim().split("\\s+");
+
+        if (words.length < 60 && content != null) {
+            // Repeat content to reach 60 words if source is too short
+            summary = truncateToWords(title + ". " + content + ". " + content, 60);
+        }
+
         return new AiResult(
                 truncateToWords(title, 10),
-                truncateToWords(content != null ? content : title, 60) + "...",
+                summary,
                 "top-stories",
                 false
         );
