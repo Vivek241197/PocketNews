@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 
     @Service
@@ -135,14 +138,28 @@ import java.util.List;
         private String cleanContent(String content) {
             if (content == null) return null;
 
-            // Remove trailing commas, semicolons, incomplete sentences
             content = content.trim();
 
+            // ✅ Remove duplicate sentences
+            String[] sentences = content.split("\\. ");
+            List<String> uniqueSentences = new ArrayList<>();
+            Set<String> seen = new LinkedHashSet<>();
+
+            for (String sentence : sentences) {
+                String normalized = sentence.trim().toLowerCase();
+                if (!normalized.isBlank() && seen.add(normalized)) {
+                    uniqueSentences.add(sentence.trim());
+                }
+            }
+
+            content = String.join(". ", uniqueSentences);
+
             // Remove trailing comma or semicolon
-            content = content.replaceAll("[,;]+$", "");
+            content = content.replaceAll("[,;]+$", "").trim();
 
             // If ends without punctuation, add period
-            if (!content.endsWith(".") && !content.endsWith("!") && !content.endsWith("?")) {
+            if (!content.endsWith(".") && !content.endsWith("!")
+                    && !content.endsWith("?")) {
                 content = content + ".";
             }
 
