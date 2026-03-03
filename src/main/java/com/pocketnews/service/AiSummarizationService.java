@@ -74,7 +74,7 @@ public class AiSummarizationService {
 
             ObjectNode requestBody = objectMapper.createObjectNode();
             requestBody.put("model", MODEL);
-            requestBody.put("max_tokens", 300);
+            requestBody.put("max_tokens", 600);
 
             ArrayNode messages = requestBody.putArray("messages");
             ObjectNode message = messages.addObject();
@@ -220,11 +220,11 @@ public class AiSummarizationService {
                 .toList();
 
         String truncatedContent = content != null && content.length() > 300
-                ? content.substring(0, 300)
+                ? content.substring(0, 500)
                 : content;
 
         return """
-        You are a news editor AI. Analyze this article and respond in EXACTLY the format below.
+        You are a news editor for a mobile app like Inshorts. Your job is to write crisp, complete summaries.
 
         AVAILABLE CATEGORIES: %s
 
@@ -234,13 +234,20 @@ public class AiSummarizationService {
         ARTICLE TITLE: %s
         ARTICLE CONTENT: %s
 
-        YOUR RESPONSE (follow this format exactly, no extra text):
-        CATEGORY: [pick one slug from available categories]
-        DUPLICATE: [YES if same event as recent headlines, NO if different]
-        SHORT_HEADLINE: [your own 10-word max headline, do NOT copy the title]
-        SHORT_CONTENT: [Write exactly 60 words. Must be complete sentences.\s
-                                Do not end with a comma or incomplete sentence.\s
-                                Cover who, what, when, where. Neutral tone.]
+    STRICT RULES:
+    - SHORT_HEADLINE: Max 10 words. Write your OWN headline. Never copy the title.
+    - SHORT_CONTENT: Write 55-60 words. Must be complete sentences only.
+      NEVER copy sentences from the article directly.
+      NEVER repeat the same sentence twice.
+      NEVER end mid-sentence or with a comma.
+      Cover: who, what, when, where, why.
+      Write like a journalist summarizing for a busy reader.
+
+    RESPOND IN EXACTLY THIS FORMAT (no extra text):
+    CATEGORY: [slug]
+    DUPLICATE: [YES or NO]
+    SHORT_HEADLINE: [your headline]
+    SHORT_CONTENT: [your 55-60 word summary]
         """.formatted(
                 String.join(", ", categorySlugs),
                 limitedHeadlines.isEmpty() ? "none" : String.join("\n", limitedHeadlines),
