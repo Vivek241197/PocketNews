@@ -70,6 +70,9 @@ import java.util.List;
 
                         String content = raw.description() != null ? raw.description() : raw.title();
 
+// ✅ Clean content before sending to Claude
+                        content = cleanContent(content);
+
                         AiSummarizationService.AiResult result =
                                 aiSummarizationService.analyzeArticle(
                                         raw.title(), content,
@@ -127,5 +130,22 @@ import java.util.List;
             if (url.contains("autocarindia")) return "Autocar India";
             if (url.contains("vogue")) return "Vogue India";
             return "News";
+        }
+
+        private String cleanContent(String content) {
+            if (content == null) return null;
+
+            // Remove trailing commas, semicolons, incomplete sentences
+            content = content.trim();
+
+            // Remove trailing comma or semicolon
+            content = content.replaceAll("[,;]+$", "");
+
+            // If ends without punctuation, add period
+            if (!content.endsWith(".") && !content.endsWith("!") && !content.endsWith("?")) {
+                content = content + ".";
+            }
+
+            return content;
         }
 }

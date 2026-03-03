@@ -238,7 +238,9 @@ public class AiSummarizationService {
         CATEGORY: [pick one slug from available categories]
         DUPLICATE: [YES if same event as recent headlines, NO if different]
         SHORT_HEADLINE: [your own 10-word max headline, do NOT copy the title]
-        SHORT_CONTENT: [write exactly 60 words summarizing who, what, when, where - count carefully]
+        SHORT_CONTENT: [Write exactly 60 words. Must be complete sentences.\s
+                                Do not end with a comma or incomplete sentence.\s
+                                Cover who, what, when, where. Neutral tone.]
         """.formatted(
                 String.join(", ", categorySlugs),
                 limitedHeadlines.isEmpty() ? "none" : String.join("\n", limitedHeadlines),
@@ -266,9 +268,36 @@ public class AiSummarizationService {
                 shortContent = line.substring("SHORT_CONTENT:".length()).trim();
         }
 
+        // ✅ Clean up shortContent
+        shortContent = cleanShortContent(shortContent);
+
         return new AiResult(shortHeadline, shortContent, category, isDuplicate);
     }
 
+    private String cleanShortContent(String content) {
+        if (content == null || content.isBlank()) return content;
+
+        // Remove trailing comma or semicolon
+        content = content.replaceAll("[,;]+$", "").trim();
+
+        // Find last complete sentence
+        int lastPeriod = Math.max(
+                content.lastIndexOf('.'),
+                Math.max(content.lastIndexOf('!'), content.lastIndexOf('?'))
+        );
+
+        // If last sentence ends properly, trim to it
+        if (lastPeriod > 0 && lastPeriod < content.length() - 1) {
+            content = content.substring(0, lastPeriod + 1);
+        }
+
+        // If doesn't end with punctuation, add period
+        if (!content.endsWith(".") && !content.endsWith("!") && !content.endsWith("?")) {
+            content = content + ".";
+        }
+
+        return content;
+    }
     private AiResult fallbackResult(String title, String content) {
         // ✅ Pad to 60 words if content is too short
         String summary = truncateToWords(content != null ? content : title, 60);
