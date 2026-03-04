@@ -74,7 +74,7 @@ public class AiSummarizationService {
 
             ObjectNode requestBody = objectMapper.createObjectNode();
             requestBody.put("model", MODEL);
-            requestBody.put("max_tokens", 200);
+            requestBody.put("max_tokens", 600);
             requestBody.put("temperature", 0.2);
 
             ArrayNode messages = requestBody.putArray("messages");
@@ -185,7 +185,7 @@ public class AiSummarizationService {
 
             ObjectNode requestBody = objectMapper.createObjectNode();
             requestBody.put("model", MODEL);
-            requestBody.put("max_tokens", 400);
+            requestBody.put("max_tokens", 600);
 
             ArrayNode messages = requestBody.putArray("messages");
             ObjectNode message = messages.addObject();
@@ -218,8 +218,8 @@ public class AiSummarizationService {
                 .map(h -> h.length() > 50 ? h.substring(0, 50) : h)
                 .toList();
 
-        String truncatedContent = content != null && content.length() > 300
-                ? content.substring(0, 500)
+        String truncatedContent = content != null && content.length() > 2500
+                ? content.substring(0, 2500)
                 : content;
 
         return """
@@ -227,15 +227,16 @@ public class AiSummarizationService {
 
         AVAILABLE CATEGORIES: %s
 
-        RECENT HEADLINES (for duplicate check):
-        %s
-
-        ARTICLE TITLE: %s
-        ARTICLE CONTENT: %s
-
+        RECENT HEADLINES (for duplicate check only - DO NOT use these in your summary):
+                    %s
+                
+                    === ARTICLE TO SUMMARIZE BELOW — IGNORE EVERYTHING ABOVE THIS LINE ===
+                    ARTICLE TITLE: %s
+                    ARTICLE CONTENT: %s
     STRICT RULES:
     - SHORT_HEADLINE: Max 10 words. Write your OWN headline. Never copy the title.
     - SHORT_CONTENT: Write 55-60 words. Must be complete sentences only.
+    SHORT_CONTENT must be on a SINGLE LINE. Do not use line breaks inside it.
       NEVER copy sentences from the article directly.
       NEVER repeat the same sentence twice.
       NEVER end mid-sentence or with a comma.
@@ -263,17 +264,28 @@ public class AiSummarizationService {
         String shortHeadline = "";
         String shortContent = "";
 
+        boolean capturingContent = false;
+        StringBuilder contentBuilder = new StringBuilder();
+
         for (String line : text.split("\n")) {
-            if (line.startsWith("CATEGORY:"))
+            if (line.startsWith("CATEGORY:")) {
+                capturingContent = false;
                 category = line.substring("CATEGORY:".length()).trim();
-            else if (line.startsWith("DUPLICATE:"))
+            } else if (line.startsWith("DUPLICATE:")) {
+                capturingContent = false;
                 isDuplicate = line.substring("DUPLICATE:".length()).trim().equalsIgnoreCase("YES");
-            else if (line.startsWith("SHORT_HEADLINE:"))
+            } else if (line.startsWith("SHORT_HEADLINE:")) {
+                capturingContent = false;
                 shortHeadline = line.substring("SHORT_HEADLINE:".length()).trim();
-            else if (line.startsWith("SHORT_CONTENT:"))
-                shortContent = line.substring("SHORT_CONTENT:".length()).trim();
+            } else if (line.startsWith("SHORT_CONTENT:")) {
+                capturingContent = true;
+                contentBuilder.append(line.substring("SHORT_CONTENT:".length()).trim());
+            } else if (capturingContent && !line.isBlank()) {
+                contentBuilder.append(" ").append(line.trim());
+            }
         }
 
+        shortContent = contentBuilder.toString().trim();
         // ✅ Clean up shortContent
         shortContent = cleanShortContent(shortContent);
 
