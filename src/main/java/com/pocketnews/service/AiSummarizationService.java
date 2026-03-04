@@ -289,27 +289,19 @@ public class AiSummarizationService {
         // ✅ Clean up shortContent
         shortContent = cleanShortContent(shortContent);
 
+        String text1 = root.path("content").get(0).path("text").asText();
+        logger.info("RAW CLAUDE RESPONSE: {}", text1);
+
         return new AiResult(shortHeadline, shortContent, category, isDuplicate);
     }
 
     private String cleanShortContent(String content) {
         if (content == null || content.isBlank()) return content;
 
-        // Remove trailing comma or semicolon
+        // Only remove trailing comma or semicolon
         content = content.replaceAll("[,;]+$", "").trim();
 
-        // Find last complete sentence
-        int lastPeriod = Math.max(
-                content.lastIndexOf('.'),
-                Math.max(content.lastIndexOf('!'), content.lastIndexOf('?'))
-        );
-
-        // If last sentence ends properly, trim to it
-        if (lastPeriod > 0 && lastPeriod < content.length() - 1) {
-            content = content.substring(0, lastPeriod + 1);
-        }
-
-        // If doesn't end with punctuation, add period
+        // Only add period if missing — nothing else
         if (!content.endsWith(".") && !content.endsWith("!") && !content.endsWith("?")) {
             content = content + ".";
         }
