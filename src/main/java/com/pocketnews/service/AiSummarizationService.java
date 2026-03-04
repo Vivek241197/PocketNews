@@ -74,7 +74,8 @@ public class AiSummarizationService {
 
             ObjectNode requestBody = objectMapper.createObjectNode();
             requestBody.put("model", MODEL);
-            requestBody.put("max_tokens", 600);
+            requestBody.put("max_tokens", 200);
+            requestBody.put("temperature", 0.2);
 
             ArrayNode messages = requestBody.putArray("messages");
             ObjectNode message = messages.addObject();
@@ -100,12 +101,10 @@ public class AiSummarizationService {
 
     private String buildPrompt(String title, String content) {
         return """
-                You are a news editor for a mobile news app. Given the title and full content of a news article, generate two things:
-
-                1. SHORT_HEADLINE: A punchy, clear headline in 10 words or fewer. Must be self-contained and informative — do NOT just truncate the title.
-
-                2. SHORT_CONTENT: A neutral 60-word summary of the article. Cover the key facts (who, what, when, where). No opinion. No filler phrases like "In a surprising turn...".
-
+                CRITICAL RULES:
+-               Generate the headline in your own words max should be 10 words
+                Generate the short content summary in your own words should be 
+                exactly 60 words generate this in your own words.
                 Respond in EXACTLY this format with no other text:
                 SHORT_HEADLINE: <your headline here>
                 SHORT_CONTENT: <your 60-word summary here>
