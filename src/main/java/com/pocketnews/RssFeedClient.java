@@ -21,6 +21,7 @@ import java.util.List;
         public record RawArticle(
                 String title,
                 String description,
+                String fullContent,  // ADD THIS
                 String sourceUrl,
                 String sourceName,
                 String imageUrl
@@ -50,6 +51,7 @@ import java.util.List;
                     articles.add(new RawArticle(
                             cleanHtml(title),
                             cleanHtml(description),
+                            scrapeFullContent(link),  // ADD THIS
                             link,
                             sourceName,
                             imageUrl
@@ -88,5 +90,45 @@ import java.util.List;
             return text.replaceAll("<[^>]*>", "")  // remove HTML tags
                     .replaceAll("\\s+", " ")    // ✅ normalize all whitespace including \t
                     .trim();
+        }
+        private String scrapeFullContent(String url) {
+            // Skip known paywalled sites — Jsoup won't get past them
+            if (url.contains("timesofindia") || url.contains("economictimes")) {
+                logger.info("Skipping scrape for paywalled site: {}", url);
+                return null; // falls back to RSS description
+            }
+            try {
+                org.jsoup.nodes.Document doc = org.jsoup.Jsoup.connect(url)
+                        .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                        .timeout(5000)
+                        .get();
+
+                doc.select("script, style, nav, header, footer, aside, .ad, .advertisement").remove();
+
+                String content = "";
+                for (String selector : List.of(
+                        "article", ".article-body", ".story-content",
+                        ".article__content", ".content-body", ".entry-content")) {
+                    content = doc.select(selector).text();
+                    if (content.length() > 200) break;
+                }
+
+                if (content.length() < 200) {
+                    content = doc.select("p").text();
+                }
+
+                // If still too short — scraping failed silently (paywall/login page)
+                if (content.length() < 100) {
+                    logger.warn("Scraped content too short ({}chars), likely paywalled: {}",
+                            content.length(), url);
+                    return null;
+                }
+
+                return content.length() > 2500 ? content.substring(0, 2500) : content;
+
+            } catch (Exception e) {
+                logger.warn("Could not scrape full content from {}: {}", url, e.getMessage());
+                return null;
+            }
         }
 }

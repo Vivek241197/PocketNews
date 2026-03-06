@@ -71,7 +71,9 @@ import java.util.Set;
                     try {
                         if (newsRepository.existsBySourceUrl(raw.sourceUrl())) continue;
 
-                        String content = raw.description() != null ? raw.description() : raw.title();
+                        String content = raw.fullContent() != null && !raw.fullContent().isBlank()
+                                ? raw.fullContent()
+                                : (raw.description() != null ? raw.description() : raw.title());
 
 // ✅ Clean content before sending to Claude
                         content = cleanContent(content);
